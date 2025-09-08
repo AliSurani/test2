@@ -90,15 +90,59 @@ All enhancements are modularized and can be turned on or off via CLI arguments. 
 
 # Experiments
 
-### **Set 1: Neural Network Layer Selection (Similarity Head - `sim_head`)**
+### **Set 1: Improving Loss Function and Sentence Representation**
 
-**Overview**
+#### **Experiment 1: Adding Pearson Loss and Mean Pooling**
+
+**Overview:**
+
+The first improvement over the baseline introduces two critical changes:
+
+  1. Replacing the loss function with a combination of MSE and 1 - Pearson correlation.
+  2. Changing the sentence embedding strategy from using `pooler_output` (i.e., the \[CLS] token) to mean pooling over all hidden states.
+     
+  These changes aim to improve alignment with the STS evaluation metric and provide better semantic representation of sentences.
+
+**Expectations:**
+
+  We expected a substantial increase in Pearson correlation by:
+
+  * Directly optimizing the loss toward the evaluation objective.
+  * Capturing richer sentence-level semantics using mean pooling instead of relying solely on the \[CLS] token, which often lacks contextual depth.
+
+**Changes:**
+
+  * Replaced baseline MSE-only loss with a combined loss: `MSE + (1 - Pearson correlation)`
+  * Replaced pooler\_output with mean pooling over the last hidden states for both sentences
+  * Retained `sim_head = linear` and `sim_feats = base`
+  * All other architectural and training parameters (dropout, batch size, LR) remained at default
+
+**Results:**
+
+  * **Baseline dev\_corr:** 0.353
+  * **Experiment 1 dev\_corr:** **0.709**
+
+**Discussion:**
+
+The experiment confirms that redefining the loss function to include Pearson correlation plays a major role in improving STS task performance. Unlike MSE, which penalizes absolute error, Pearson correlation rewards predictions that preserve the relative similarity rankings, which aligns much better with human judgment.
+
+Additionally, switching from `pooler_output` to mean pooling significantly enhanced sentence embeddings. While \[CLS] is trained primarily for classification, it often lacks deep context aggregation, especially for semantic similarity. Mean pooling, by averaging all token embeddings, offers a more holistic view of the sentence; capturing nuances and structure that are often missed by the \[CLS] token.
+
+The combination of metric-aligned loss and improved representation is what led to a dramatic increase in dev correlation, setting a strong foundation for further architectural and optimization experiments.
+
+
+### **Set 2: Neural Network Layer Selection (Similarity Head - `sim_head`)**
+
+**Overview:**
+
 In this set of experiments, we evaluate different architectures for the similarity regression head (`sim_head`) on the Semantic Textual Similarity (STS) task. All other parameters are held constant, and only the `sim_head` configuration is changed.
 
-**Expectation**
+**Expectation:**
+
 We expected deeper and more expressive architectures to capture richer semantic interactions between sentence pairs, thus improving correlation scores over the simple linear head.
 
-**Changes**
+**Changes:**
+
 The only modification across these experiments was the type of `sim_head` used:
 
 * **`linear`**: A simple linear layer.
@@ -108,17 +152,17 @@ The only modification across these experiments was the type of `sim_head` used:
 
 All other components — sentence embedding strategy, feature vector, and training setup — were kept constant for fair comparison.
 
-### **Individual Experiments and Results**
+**Results:**
 
 | Experiment | `sim_head`       | Dev Correlation |
 | ---------: | ---------------- | --------------- |
-|      Exp 1 | `linear`         | 0.736           |
-|      Exp 2 | `mlp`            | **0.824**       |
-|      Exp 3 | `deep_with_gelu` | 0.818           |
-|      Exp 4 | `deep_with_relu` | 0.806           |
+|      Exp 2 | `linear`         | 0.736           |
+|      Exp 3 | `mlp`            | **0.824**       |
+|      Exp 4 | `deep_with_gelu` | 0.818           |
+|      Exp 5 | `deep_with_relu` | 0.806           |
 
 
-### **Discussion**
+**Discussion**
 
 * All non-linear heads outperformed the baseline `linear` head, showing that deeper or non-linear architectures are more suitable for the STS task.
 * Surprisingly, deeper architectures (`deep_with_gelu`, `deep_with_relu`) underperformed compared to the MLP. This may be due to:
@@ -130,39 +174,107 @@ All other components — sentence embedding strategy, feature vector, and traini
 * Carring forward both architectures allows us to evaluate trade-offs between complexity, generalization, and extensibility in future experiments (e.g., with residual connections, contrastive losses, etc.).
   
 
-## **Set 2: Sentence Pair Embedding (`sim_feats`)**
+## **Set 3: Sentence Pair Embedding (`sim_feats`)**
 
-**What experiments are you executing?**
+**Overview:**
+
 This set evaluates whether enriching the sentence pair feature vector with an additional average component (`avg`) leads to improved semantic similarity prediction. We test this using the top-performing heads (`mlp` and `deep_with_gelu`) from the previous experiment.
 
-**What were your expectations for this experiment?**
+**Expectations:**
+
 The hypothesis was that including the average of the two sentence embeddings, along with their element-wise difference and product, would offer a more expressive feature space for similarity modeling, potentially boosting performance.
 
-**What have you changed compared to previous experiments?**
+**Changes:**
 
 * Changed `sim_feats` from `"base"` to `"avg"`
 * Continued with the best two heads: `mlp` and `deep_with_gelu`
 * Resulting feature vector: `[emb1, emb2, |emb1 - emb2|, emb1 * emb2, (emb1 + emb2)/2]` 
 
-### **Results**
+**Results:**
 
 | Experiment | `sim_head`       | `sim_feats` | Dev Correlation |
 | ---------: | ---------------- | ----------- | --------------- |
-|      Exp 5 | `mlp`            | `avg`       | **0.824**       |
-|      Exp 6 | `deep_with_gelu` | `avg`       | 0.818           |
+|      Exp 6 | `mlp`            | `avg`       | **0.824**       |
+|      Exp 7 | `deep_with_gelu` | `avg`       | 0.818           |
 
 
-### **Discussion**
+**Discussion:**
 
-Both models retained strong performance when switching from `base` to `avg` sentence-pair embedding strategies. Importantly, there was no performance degradation, the scores remained stable. This doesn't indicates that the richer representation including the average of sentence embeddings provides beneficial additional context for semantic alignment:
+Although we expected the addition of the average component (`avg`) to significantly improve the correlation scores due to its ability to capture global semantic similarity between the sentence embeddings, the actual performance remained largely unchanged compared to the `base` feature set. Both `mlp` and `deep_with_gelu` architectures retained their prior performance levels, indicating that the benefit of adding the average term may be architecture-dependent or saturated given the other expressive features already in use (like `|diff|` and `product`).
 
-* **MLP** maintained its top performance with `avg` (0.824), confirming its ability to handle expanded feature representations.
-* **Deep with GELU** also performed competitively (0.818), showing that deeper architectures can leverage more expressive input features effectively.
-* Based on these outcomes, we **carry forward both `mlp` and `deep_with_gelu` with `sim_feats=avg`** to the next experimental stages. This decision is grounded in empirical stability and theoretical support—adding `avg` helps capture global semantic similarity while complementing local interaction features like `|diff|` and `product`.
+That said, we still carry forward `sim_feats=avg` for future experiments due to its theoretical merit:
+
+* It provides a global similarity cue that complements the local differences (`|diff|`) and interactions (`product`).
+* It introduces no overhead or degradation, maintaining stable performance while potentially offering benefits when combined with other enhancements like contrastive learning or normalization.
+
+In short, while the empirical gains were modest in this isolated experiment, the conceptual richness and future synergy potential justify keeping the `avg` component in our continued architecture.
+
+
+## **Set 4: Adding Normalization and Residual Layers**
+
+**Overview:**
+
+In this experiment set, we evaluate whether adding normalization (`use_norm`) and residual layers (`use_residual`) improves sentence similarity prediction when applied on top of the best-performing configurations from Set 3 (i.e., `sim_feats=avg` with `mlp` and `deep_with_gelu` heads).
+
+We aim to determine whether:
+
+* LayerNorm helps stabilize and scale the concatenated similarity feature vector.
+* Residual connections applied to sentence embeddings (before computing similarity features) help preserve semantic information and improve gradient flow.
+
+**Expectations:**
+
+Given the high capacity of `mlp` and `deep_with_gelu` heads, we hypothesized that:
+
+* Normalization would reduce internal covariate shift and accelerate convergence.
+* Residual layers would enhance representation learning by retaining raw features alongside transformed ones, improving expressiveness and stability.
+
+Together, these additions were expected to yield modest but consistent improvements over prior configurations.
+
+**Changes:**
+
+Built directly on top of Set 3, which used:
+
+* `sim_feats = avg` (i.e., `[emb1, emb2, |emb1 - emb2|, emb1 * emb2, (emb1 + emb2)/2]`)
+* `sim_head ∈ {mlp, deep_with_gelu}`
+
+For Set 4, we added:
+
+* `use_norm = True` → applies `LayerNorm` over the similarity feature vector.
+* `use_residual = True` → adds a `Residual(emb + f(emb))` transformation before computing similarity.
+
+**Results:**
+
+| Experiment | `sim_head`       | `sim_feats` | `use_norm` | `use_residual` | Dev Correlation |
+| ---------: | ---------------- | ----------- | ---------- | -------------- | --------------- |
+|      Exp 8 | `mlp`            | `avg`       | `True`          | `True`              | **0.830**       |
+|      Exp 9 | `deep_with_gelu` | `avg`       | `True`          | `True`              | 0.828           |
+
+
+**Discussion:**
+
+Both experiments achieved the highest dev Pearson correlation scores so far in the STS task, confirming the benefit of introducing architectural enhancements such as normalization and residual learning.
+
+* Experiment 8 (`mlp`) emerged as the top performer (0.830). The MLP head likely benefits from normalized feature inputs, which prevent saturation of hidden layers and support smoother convergence. Residuals also preserve key semantics from the original embeddings.
+* Experiment 9 (`deep_with_gelu`) followed closely (0.828). While deeper layers can benefit more from residuals due to vanishing gradients, the added complexity might slightly reduce it's ability to generalize without further regularization.
+
+The increase from Set 3 (max = 0.824) to Set 4 (max = 0.830) validates this stepwise enhancement.
+
+We carry forward both `mlp` and `deep_with_gelu` architectures with:
+
+* `sim_feats = avg`
+* `use_norm = True`
+* `use_residual = True`
+
+This decision is based on:
+
+* Empirical improvements in correlation.
+* Theoretical grounding in deep learning literature (e.g., LayerNorm and Residuals are known to stabilize and deepen effective capacity).
+* Maintaining architectural diversity to support further stages such as contrastive learning, scheduler tuning, and ensemble modeling.
+
 
 ---
 
-Let me know when to proceed with **Set 3: Residual and Normalization Layers**.
+
 
 
 
