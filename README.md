@@ -1,168 +1,184 @@
-# Abstract  
 
 # Methodology
 
-## Baseline Regression with Pooler Output and MSE Loss
+This task focuses on improving semantic textual similarity (STS) performance using a customized multitask BERT architecture. Our primary goal is to explore, implement, and evaluate various architectural and optimization strategies within a unified and extensible pipeline that supports both baseline and advanced methods via configurable command-line arguments. The overarching methodology is to systematically extend the standard BERT model into a flexible research platform for sentence-level similarity tasks, leveraging modern advancements in neural architectures and loss functions.
 
-### Approach
-- Enhanced architecture by using mean pooling for better sentence representation.
-- Built a richer feature vector combining various embedding operations.
-- Improved optimization by incorporating Pearson correlation directly in the loss function.
-- Added a learning rate scheduler with warmup to improve convergence.
+### **Overall Pipeline Design**
 
-### Expectation
-Improve correlation performance on the STS task by:
-- Using better sentence embeddings.
-- Leveraging a more expressive input representation.
-- Aligning the training objective with the evaluation metric (Pearson).
-- Stabilizing training through better learning rate scheduling.
+We extend the existing BERT-based multitask classifier into a modular architecture that supports a wide range of configurable options. These modifications allow us to control different aspects of the model, such as feature representations, similarity head architectures, regularization techniques, contrastive learning objectives, and training dynamics. All improvements are implemented in a single training script, with runtime configurability via CLI flags.
 
-### Changes
+### **Core Enhancements and Architecture Components**
 
-#### 1. SCST objective on penalized BLEU
-- Sentence-level SacreBLEU with effective_order=True (default smoothing) used for the *per-sample* reward; advantage A = R(sample) − R(greedy).  
-- Decoding split: greedy baseline vs sampled rollout with these sampled rollout hyperparameters:
-  - do_sample=True
-  - top_p=0.9
-  - top_k=50
-  - temperature=1.5
-  - min_length=8
-  - repetition_penalty=1.1
+#### 1. **Similarity Head (`--sim_head`)**
 
-#### 2. Stability and optimization controls
-- Loss mixing: loss = 0.3 × PG + 0.7 × MLE (λ_rl tunable).  
-- Advantage normalization with floor: scale = max(std(A), 0.1); skip PG when std(A) < 1e−6.  
-- Gradient clipping at 1.0.  
-- Careful train/eval toggling around generate() calls and during log-prob computation to ensure correct requires_grad semantics.
+A new argument `--sim_head` controls the architecture of the similarity regressor. Four types are supported:
 
-#### 3. Metric and checkpoint discipline
-- Reward/eval consistency: use the same BLEU flavor (SacreBLEU, effective_order=True) during reward computation to avoid metric drift; corpus-level BLEU is used for final reporting.  
-- Checkpoint-on-improvement: evaluate dev penalized BLEU each RL epoch and overwrite best_bart_model.pt only when the dev penalized BLEU improves; reload the best checkpoint at the end.
+* `"linear"`: A simple linear projection layer.
+* `"mlp"`: A shallow MLP with one hidden layer and ReLU activation.
+* `"deep_with_gelu"`: A deeper feed-forward network using GELU activation for richer modeling.
+* `"deep_with_relu"`: Same as above, but with ReLU activation.
 
----
+These enable controlled experiments on the effect of shallow vs. deep architectures on STS performance.
 
-### Results
+#### 2. **Feature Representation (`--sim_feats`)**
 
-- *Validation (dev, penalized BLEU):* 26.215 → 31.797 (+5.582 absolute, +21.3% relative).  
-- *Relative to earlier MLE baseline (24.754):* +7.043 absolute, +28.5% relative.  
-- Observed trend: best results commonly occur early in RL (example best at epoch 2/6); later epochs can oscillate but typically remain above the pre-RL checkpoint.  
-- Qualitative: fewer near-copies of the source; more varied phrasing and structure while preserving meaning.
+The `--sim_feats` flag controls how the sentence pair embeddings are combined before similarity regression:
 
-*Per-epoch summary (dev metrics)*
+* `"base"`: Concatenation of `[emb1, emb2, |emb1 - emb2|, emb1 * emb2]`
+* `"avg"`: Same as base, but also adds `(emb1 + emb2) / 2` for additional relational information.
 
-| Phase/Epoch | BLEU(ref→hyp) | 100−BLEU(input→hyp) | Penalized BLEU |
-|---|---:|---:|---:|
-| Supervised (before RL) | 42.290 | 32.234 | 26.215 |
-| RL Epoch 1 | 41.490 | 34.487 | 27.516 |
-| RL Epoch 2 (best) | 38.506 | 42.939 | 31.797 |
-| RL Epoch 3 | 38.680 | 41.769 | 31.069 |
-| RL Epoch 4 | 39.272 | 40.896 | 30.886 |
-| RL Epoch 5 | 37.558 | 43.463 | 31.392 |
-| RL Epoch 6 | 39.520 | 39.660 | 30.142 |
+This allows richer modeling of similarity through explicit vector arithmetic features.
 
----
+#### 3. **Residual Connection (`--use_residual`)**
 
-### Discussion
+We introduce an optional residual layer to improve gradient flow and representation stability. This applies a linear transformation followed by ReLU and adds it back to the original embeddings before computing similarity.
 
-#### Why these results
-- *Objective alignment:* Penalized BLEU directly matches the paraphrase evaluation goal and explicitly penalizes copying from the input—this addresses a major failure mode on high-overlap paraphrase datasets.  
-- *Variance reduction:* The self-critical advantage (sample − greedy) cancels shared biases between the two trajectories, producing lower-variance, more useful policy gradients.  
-- *Reward smoothing:* Sentence-level SacreBLEU smoothing avoids zero n-gram rewards on medium-length outputs, which stabilizes policy updates.  
-- *Controlled exploration:* Top-p/top-k/temperature sampling lets the policy explore realistic paraphrase alternatives; SCST only reinforces sampled outputs that outperform greedy under the reward, converting exploration into consistent metric gains.
+#### 4. **Feature Normalization (`--use_norm`)**
 
-#### Sampling rationale (short)
-- top_p = 0.9: keeps 90% probability mass and surfaces viable alternatives while avoiding extreme tails.  
-- top_k = 50: caps candidate tokens to avoid sampling extremely low-probability tokens when the distribution is flat.  
-- temperature = 1.5: flattens the distribution enough for synonyms/alternate constructions to appear without breaking fluency.  
-- min_length = 8: prevents very short outputs and allows room for structural variation.  
-- repetition_penalty = 1.1: discourages verbatim copying and loops, nudging towards lexical variety.  
-- do_sample = True + early_stopping = False: ensures genuine exploration beyond greedy and allows sequences to realize alternative structures before EOS.
+To stabilize training and standardize feature distributions, we apply `LayerNorm` after concatenating the similarity feature vector. This is controlled via `--use_norm`.
 
-#### What it achieves
-- Higher penalized BLEU vs. pure MLE by balancing faithfulness and novelty.  
-- Increased lexical and syntactic diversity while preserving fluency (thanks to MLE mixing and repetition/length controls).  
-- More stable RL training via advantage normalization, variance guards, and gradient clipping.  
-- Reproducible best-model selection using dev penalized BLEU checkpointing.
 
-#### What it could not fully achieve (and why)
-- *Monotonic improvement across epochs:* sentence-level rewards are noisy; improvements often peak early and can oscillate thereafter.  
-- *Perfect semantic adequacy control:* penalized BLEU is only a proxy for meaning—overly aggressive sampling can still harm semantics.  
-- *Hyperparameter robustness:* outcomes depend on sampling hyperparameters, λ_rl, RL learning rate; mis-tuning can negate gains.  
-- *Full train/eval parity:* training uses sentence-level smoothed BLEU for stability while reporting uses corpus BLEU for comparability; this intentional mismatch cannot be fully eliminated but is managed.
+### **Optimization Enhancements**
+
+#### 5. **Learning Rate Scheduling**
+
+To improve convergence and generalization, we add support for:
+
+* `--use_linear_scheduler`: Applies linear warm-up and decay.
+* `--use_cosine_scheduler`: Applies cosine decay with warm-up.
+
+Only one can be used at a time. Warmup steps are set to 10% of the total training steps.
+
+#### 6. **Loss Function Customization**
+
+We extend the loss function to optimize for Pearson correlation (our evaluation metric):
+
+* Final loss = `MSE + (1 - Pearson)` with optional contrastive components.
+* The contrastive component is scaled using `--contrastive_loss_weight` (default = 0.5).
+
+#### 7. **Contrastive Learning (`--use_contrastive`)**
+
+To improve the embedding space quality, we implement SimCSE-style contrastive loss:
+
+* For each input sentence, two views are created using dropout noise.
+* Cosine embedding loss is computed between them, encouraging similar representations.
+* This is applied in addition to the primary loss function.
+
+#### 8. **In-Batch Contrastive Learning (`--use_inbatch_contrastive`)**
+
+To further enhance representation learning using hard negatives, we implement in-batch contrastive loss:
+
+* Sentence embeddings from both inputs are compared with all others in the batch.
+* Cross-entropy loss is computed using similarity matrix with a temperature-scaled dot product.
+* This introduces stronger signal for learning discriminative embeddings.
+
+#### **9. Hyperparameter Search for Best Model**
+
+To further optimize the best-performing model, we implement hyperparameter search across key parameters:
+
+* Learning Rate (`lr`)
+* Hidden Dropout Probability (`hidden_dropout_prob`)
+* Batch Size (`batch_size`)
+
+
+### **Unified Experimentation Platform**
+
+All enhancements are modularized and can be turned on or off via CLI arguments. This enables rapid experimentation with different architectural and training strategies without changing the core code structure. The final goal is to discover an optimal combination that significantly boosts STS correlation compared to the baseline model.
 
 ---
 
-## Reproducibility notes
-- Use SacreBLEU with effective_order=True both in reward computation and when possible in final evaluation to reduce metric mismatch.  
-- Keep advantage normalization and the variance guard (skip PG if std(A) < 1e−6) to avoid degenerate PG updates.  
-- Mix a stable MLE term (e.g., λ_rl = 0.3) to preserve fluency.  
-- Save the best model only when dev penalized BLEU improves; reload at the end for downstream inference.
 
----
+# Experiments
+Keep track of your experiments here. What are the experiments? Which tasks and models are you considering?
 
-### Padding Masking in Targets
+Write down all the main experiments and results you did, even if they didn't yield an improved performance. Bad results are also results. The main findings/trends should be discussed properly. Why a specific model was better/worse than the other?
 
-### Approach
-During supervised (MLE) training and in the MLE stabilizer used during RL, mask all padding tokens in the target labels so they do not contribute to the loss. Implementation: set labels[labels == tokenizer.pad_token_id] = -100, which PyTorch’s CrossEntropyLoss ignores by default.
+You are **required** to implement one baseline and improvement per task. Of course, you can include more experiments/improvements and discuss them. 
 
-### Expectation
-- Prevents the model from learning to predict <pad> tokens, reduces noise in the loss, and improves BLEU scores.  
-- Reduces length bias (the model over-predicting <pad> or ending too early).  
-- Produces cleaner gradients for faster, more stable convergence and improved penalized BLEU.  
-- In RL, ensures the MLE stabilizer reinforces content tokens rather than padding.
+You are free to include other metrics in your evaluation to have a more complete discussion.
 
-### Changes
-- **Supervised dataloader (transform_data): after tokenizing targets, clone to labels and set pad positions to -100.  
-- **RL epoch (rl_finetune_epoch): re-tokenize refs per batch for the stabilizer and again set pad positions to -100.  
-- Verified tokenizer.pad_token_id and generation args (eos_token_id, no_repeat_ngram_size) are correctly set.
+Be creative and ambitious.
 
-### Results
-- Training: lower and smoother training loss curves; reduced variance across steps.  
-- Qualitative: fewer truncated outputs; more stable sequence lengths; fewer padding artifacts in generations.  
-- Validation: penalized BLEU improved from *20* to *26* on the dev set with identical decoding settings.
+For each experiment answer briefly the questions:
 
-### Discussion
-Masking padding is standard for seq2seq cross-entropy; without it, the model “learns” to predict padding and shortens outputs. This change helps decouple sequence length control from loss shaping and complements decoding constraints (e.g., no_repeat_ngram_size, min/max length). In the SCST setup, it keeps the MLE component aligned with semantic content, avoiding distortions from padding-heavy batches.
+- What experiments are you executing? Don't forget to tell how you are evaluating things.
+- What were your expectations for this experiment?
+- What have you changed compared to the base model (or to previous experiments, if you run experiments on top of each other)?
+- What were the results?
+- Add relevant metrics and plots that describe the outcome of the experiment well. 
+- Discuss the results. Why did improvement _A_ perform better/worse compared to other improvements? Did the outcome match your expectations? Can you recognize any trends or patterns?
 
-*Caveats:* ensure the correct pad ID (especially if swapping tokenizers); do not reintroduce padding loss via a custom collator; if using label smoothing, apply it after masking so pads remain ignored.
+## Results 
+Summarize all the results of your experiments in tables:
 
-# Usage  
+| **Stanford Sentiment Treebank (SST)** | **Metric 1** |**Metric n** |
+|----------------|-----------|------- |
+|Baseline |45.23%           |...            | 
+|Improvement 1          |58.56%            |...          
+|Improvement 2        |52.11%|...|
+|...        |...|...|
 
-You can run my implementation in two modes: *SCST RL* (penalized BLEU) and *Quality-Controlled RL*.  
+| **Quora Question Pairs (QQP)** | **Metric 1** |**Metric n** |
+|----------------|-----------|------- |
+|Baseline |45.23%           |...            | 
+|Improvement 1          |58.56%            |...          
+|Improvement 2        |52.11%|...|
+|...        |...|...|
 
-### 1. SCST RL (default)  
-Run self-critical sequence training on penalized BLEU with supervised fine-tuning: 
-bash
-python bart_generation.py \
-  --use_gpu \
-  --do_supervised \
-  --supervised_epochs 8 \
-  --use_rl \
-  --rl_epochs 6
+| **Semantic Textual Similarity (STS)** | **Metric 1** |**Metric n** |
+|----------------|-----------|------- |
+|Baseline |45.23%           |...            | 
+|Improvement 1          |58.56%            |...          
+|Improvement 2        |52.11%|...|
+|...        |...|...|
+
+| **Paraphrase Type Detection (PTD)** | **Metric 1** |**Metric n** |
+|----------------|-----------|------- |
+|Baseline |45.23%           |...            | 
+|Improvement 1          |58.56%            |...          
+|Improvement 2        |52.11%|...|
+|...        |...|...|
+
+| **Paraphrase Type Generation (PTG)** | **Metric 1** |**Metric n** |
+|----------------|-----------|------- |
+|Baseline |45.23%           |...            | 
+|Improvement 1          |58.56%            |...          
+|Improvement 2        |52.11%|...|
+|...        |...|...|
+
+Discuss your results, observations, correlations, etc.
+
+Results should have three-digit precision.
+ 
+
+### Hyperparameter Optimization 
+Describe briefly how you found your optimal hyperparameter. If you focussed strongly on Hyperparameter Optimization, you can also include it in the Experiment section. 
+
+_Note: Random parameter optimization with no motivation/discussion is not interesting and will be graded accordingly_
+
+## Visualizations 
+Add relevant graphs of your experiments here. Those graphs should show relevant metrics (accuracy, validation loss, etc.) during the training. Compare the  different training processes of your improvements in those graphs. 
+
+For example, you could analyze different questions with those plots like: 
+- Does improvement A converge faster during training than improvement B? 
+- Does Improvement B converge slower but perform better in the end? 
+- etc...
+
+## Members Contribution 
+Explain what member did what in the project:
+
+**Member 1:** _implemented the training objective using X, Y, and Z. Supported member 2 in refactoring the code. Data cleaning, etc._
+
+**Member 2:** ...
+
+...
+
+We should be able to understand each member's contribution within 5 minutes. 
+
+# AI-Usage Card
+Artificial Intelligence (AI) aided the development of this project. Please add a link to your AI-Usage card [here](https://ai-cards.org/).
+
+# References 
+Write down all your references (other repositories, papers, etc.) that you used for your project.
 
 
-### 2. Quality-Controlled RL
-Enable the quality-guided reward by providing semantic, syntactic, and lexical weights.
-
-#### Best weights :
-
-bash
-python bart_generation.py \
-  --use_gpu \
-  --do_supervised \
-  --supervised_epochs 8 \
-  --use_rl \
-  --rl_epochs 6
-  --quality_weights 0.7 0.2 0.1
-
-
-# References  
-
-*Paraphrase Generation with Deep Reinforcement Learning [Li, Jiang, Shang et al., 2018]*  
-Li et al. (2018) introduced a framework where a sequence-to-sequence generator is paired with a deep matching evaluator. The generator is first trained with supervised learning and then fine-tuned with reinforcement learning, using the evaluator’s feedback as the reward signal. Compared to this, I simplified the setup by using self-critical sequence training (SCST), where the model directly compares its sampled outputs against greedy baselines under a penalized BLEU reward. This avoids training a separate evaluator, making the pipeline lighter while still aligning training with evaluation metrics. However, unlike Li et al.’s evaluator, which can capture nuanced quality judgments, my BLEU-based reward is a proxy and may miss finer aspects of semantic fidelity.  
-
-*Quality-Guided Paraphrase Generation [Bandel et al., 2022]*  
-Bandel et al. (2022) address the lack of direct quality control in paraphrase generation by introducing a three-dimensional quality vector covering semantic similarity, syntactic variation, and lexical variation. Their model allows users to guide paraphrase generation explicitly along these axes. I adopted a simplified version of this idea via the optional --quality_weights argument, where users can specify weights for semantic, syntactic, and lexical components in the reward function. While this provides flexible control similar in spirit to Bandel et al., it is less sophisticated: I use lightweight proxies (sentence BLEU, length difference, and word overlap) instead of deep quality estimators. Still, this makes my system easy to integrate into SCST without retraining specialized quality models.  
-
-*Summary*  
-In comparison, Li et al. focus on reinforcement learning with a learned evaluator, Bandel et al. on explicit controllability of paraphrase quality, and my approach combines both ideas in a lightweight manner: using SCST for stability and simplicity, and offering user-configurable quality-guided rewards for controllability. This provides a middle ground between evaluator-heavy RL and fully controlled architectures, balancing reproducibility, interpretability, and practical performance.
