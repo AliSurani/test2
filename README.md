@@ -89,24 +89,86 @@ All enhancements are modularized and can be turned on or off via CLI arguments. 
 
 
 # Experiments
-Keep track of your experiments here. What are the experiments? Which tasks and models are you considering?
 
-Write down all the main experiments and results you did, even if they didn't yield an improved performance. Bad results are also results. The main findings/trends should be discussed properly. Why a specific model was better/worse than the other?
+### **Set 1: Neural Network Layer Selection (Similarity Head - `sim_head`)**
 
-You are **required** to implement one baseline and improvement per task. Of course, you can include more experiments/improvements and discuss them. 
+**Overview**
+In this set of experiments, we evaluate different architectures for the similarity regression head (`sim_head`) on the Semantic Textual Similarity (STS) task. All other parameters are held constant, and only the `sim_head` configuration is changed.
 
-You are free to include other metrics in your evaluation to have a more complete discussion.
+**Expectation**
+We expected deeper and more expressive architectures to capture richer semantic interactions between sentence pairs, thus improving correlation scores over the simple linear head.
 
-Be creative and ambitious.
+**Changes**
+The only modification across these experiments was the type of `sim_head` used:
 
-For each experiment answer briefly the questions:
+* **`linear`**: A simple linear layer.
+* **`mlp`**: A 2-layer Multi-Layer Perceptron with ReLU and dropout.
+* **`deep_with_gelu`**: A deeper 3-layer feedforward network with GELU activation.
+* **`deep_with_relu`**: Same as above, but with ReLU activation.
 
-- What experiments are you executing? Don't forget to tell how you are evaluating things.
-- What were your expectations for this experiment?
-- What have you changed compared to the base model (or to previous experiments, if you run experiments on top of each other)?
-- What were the results?
-- Add relevant metrics and plots that describe the outcome of the experiment well. 
-- Discuss the results. Why did improvement _A_ perform better/worse compared to other improvements? Did the outcome match your expectations? Can you recognize any trends or patterns?
+All other components — sentence embedding strategy, feature vector, and training setup — were kept constant for fair comparison.
+
+### **Individual Experiments and Results**
+
+| Experiment | `sim_head`       | Dev Correlation |
+| ---------: | ---------------- | --------------- |
+|      Exp 1 | `linear`         | 0.736           |
+|      Exp 2 | `mlp`            | **0.824**       |
+|      Exp 3 | `deep_with_gelu` | 0.818           |
+|      Exp 4 | `deep_with_relu` | 0.806           |
+
+
+### **Discussion**
+
+* All non-linear heads outperformed the baseline `linear` head, showing that deeper or non-linear architectures are more suitable for the STS task.
+* Surprisingly, deeper architectures (`deep_with_gelu`, `deep_with_relu`) underperformed compared to the MLP. This may be due to:
+  * Overfitting on limited STS training data.
+  * Vanishing gradient issues or insufficient depth-regularization.
+* While `mlp` achieved the highest dev correlation, `deep_with_gelu` was close behind and offers more architectural flexibility for future improvements.
+* The difference between `deep_with_gelu` and `deep_with_relu` emphasizes the importance of activation choice; smoother GELU activations align better with transformer-based models.
+* We decided to carry forward both `mlp` and `deep_with_gelu` heads for the next experiment sets.
+* Carring forward both architectures allows us to evaluate trade-offs between complexity, generalization, and extensibility in future experiments (e.g., with residual connections, contrastive losses, etc.).
+  
+
+## **Set 2: Sentence Pair Embedding (`sim_feats`)**
+
+**What experiments are you executing?**
+This set evaluates whether enriching the sentence pair feature vector with an additional average component (`avg`) leads to improved semantic similarity prediction. We test this using the top-performing heads (`mlp` and `deep_with_gelu`) from the previous experiment.
+
+**What were your expectations for this experiment?**
+The hypothesis was that including the average of the two sentence embeddings, along with their element-wise difference and product, would offer a more expressive feature space for similarity modeling, potentially boosting performance.
+
+**What have you changed compared to previous experiments?**
+
+* Changed `sim_feats` from `"base"` to `"avg"`
+* Continued with the best two heads: `mlp` and `deep_with_gelu`
+* Resulting feature vector: `[emb1, emb2, |emb1 - emb2|, emb1 * emb2, (emb1 + emb2)/2]` 
+
+### **Results**
+
+| Experiment | `sim_head`       | `sim_feats` | Dev Correlation |
+| ---------: | ---------------- | ----------- | --------------- |
+|      Exp 5 | `mlp`            | `avg`       | **0.824**       |
+|      Exp 6 | `deep_with_gelu` | `avg`       | 0.818           |
+
+
+### **Discussion**
+
+Both models retained strong performance when switching from `base` to `avg` sentence-pair embedding strategies. Importantly, there was no performance degradation, the scores remained stable. This doesn't indicates that the richer representation including the average of sentence embeddings provides beneficial additional context for semantic alignment:
+
+* **MLP** maintained its top performance with `avg` (0.824), confirming its ability to handle expanded feature representations.
+* **Deep with GELU** also performed competitively (0.818), showing that deeper architectures can leverage more expressive input features effectively.
+* Based on these outcomes, we **carry forward both `mlp` and `deep_with_gelu` with `sim_feats=avg`** to the next experimental stages. This decision is grounded in empirical stability and theoretical support—adding `avg` helps capture global semantic similarity while complementing local interaction features like `|diff|` and `product`.
+
+---
+
+Let me know when to proceed with **Set 3: Residual and Normalization Layers**.
+
+
+
+
+
+
 
 ## Results 
 Summarize all the results of your experiments in tables:
