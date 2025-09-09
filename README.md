@@ -272,7 +272,54 @@ This decision is based on:
 * Maintaining architectural diversity to support further stages such as contrastive learning, scheduler tuning, and ensemble modeling.
 
 
+## **Set 5: Contrastive Learning**
+
+**Overview:**
+
+This set investigates whether integrating SimCSE-style contrastive learning can improve sentence similarity modeling for the STS task. The core idea is to regularize sentence representations by encouraging consistency under dropout-induced augmentations, making the embeddings more robust and semantically meaningful.
+
+**Expectations:**
+
+The expectation was that contrastive learning would:
+
+* Encourage intra-sentence consistency by pulling together dropout-augmented views of the same sentence (unsupervised SimCSE)
+* Improve sentence-level representation quality, which in turn would benefit pairwise similarity scoring
+* Lead to higher Pearson correlation on the STS dev set by making sentence embeddings more informative and aligned with semantic meaning
+
+**Changes:**
+
+This builds directly on Set 4, and adds:
+
+* `use_contrastive = True` → enables SimCSE-style contrastive loss on individual sentence embeddings during STS training.
+
+### **Results:**
+
+| Experiment | `sim_head`       | `sim_feats` | `use_norm` | `use_residual` | `use_contrastive` | Dev Correlation |
+| ---------: | ---------------- | ----------- | ---------- | -------------- | ----------------- | --------------- |
+|     Exp 10 | `mlp`            | `avg`       | `True`          | `True`              | `True`                 | 0.825           |
+|     Exp 11 | `deep_with_gelu` | `avg`       | `True`          | `True`              | `True`                 | **0.834**       |
+
+
+**Discussion:**
+
+The addition of SimCSE-style contrastive learning had mixed but meaningful results:
+
+* Experiment 11 (`deep_with_gelu`) reached a new highest dev Pearson correlation of 0.834, suggesting that deeper networks like GELU-activated models benefit more from self-regularization techniques like contrastive learning. The deeper architecture is better suited to absorb the noise-based alignment pressure and encode more robust semantics.
+
+* Experiment 10 (`mlp`) saw a slight dip from its previous high (0.830 → 0.825), which might suggest that simpler networks get easily over-regularized by contrastive loss without enough expressive depth to balance representation learning and alignment.
+
+Despite this tradeoff, both models maintained high performance, indicating that contrastive learning is a valuable addition to the pipeline.
+
+We carry forward only `deep_with_gelu` with contrastive learning to the next stages due to:
+
+* Its strongest performance (0.834)
+* Compatibility between contrastive learning and deep + nonlinear architectures
+* Strong theoretical grounding from SimCSE and related literature, where contrastive pretraining benefits deeper models more prominently
+
+`mlp` will be retained as a baseline but not actively explored in contrastive learning branches.
+
 ---
+
 
 
 
