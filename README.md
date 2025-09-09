@@ -427,66 +427,36 @@ We choose to carry forward the Linear Scheduler for future experiments. It offer
 
 As we move into final hyperparameter tuning, this linear schedule will serve as a reliable training backbone.
 
-
-
 ---
 
-
-
-
-
-
-
-
-
-
 ## Results 
-Summarize all the results of your experiments in tables:
-
-| **Stanford Sentiment Treebank (SST)** | **Metric 1** |**Metric n** |
-|----------------|-----------|------- |
-|Baseline |45.23%           |...            | 
-|Improvement 1          |58.56%            |...          
-|Improvement 2        |52.11%|...|
-|...        |...|...|
-
-| **Quora Question Pairs (QQP)** | **Metric 1** |**Metric n** |
-|----------------|-----------|------- |
-|Baseline |45.23%           |...            | 
-|Improvement 1          |58.56%            |...          
-|Improvement 2        |52.11%|...|
-|...        |...|...|
-
-| **Semantic Textual Similarity (STS)** | **Metric 1** |**Metric n** |
-|----------------|-----------|------- |
-|Baseline |45.23%           |...            | 
-|Improvement 1          |58.56%            |...          
-|Improvement 2        |52.11%|...|
-|...        |...|...|
-
-| **Paraphrase Type Detection (PTD)** | **Metric 1** |**Metric n** |
-|----------------|-----------|------- |
-|Baseline |45.23%           |...            | 
-|Improvement 1          |58.56%            |...          
-|Improvement 2        |52.11%|...|
-|...        |...|...|
-
-| **Paraphrase Type Generation (PTG)** | **Metric 1** |**Metric n** |
-|----------------|-----------|------- |
-|Baseline |45.23%           |...            | 
-|Improvement 1          |58.56%            |...          
-|Improvement 2        |52.11%|...|
-|...        |...|...|
-
-Discuss your results, observations, correlations, etc.
-
-Results should have three-digit precision.
- 
-
 ### Hyperparameter Optimization 
-Describe briefly how you found your optimal hyperparameter. If you focussed strongly on Hyperparameter Optimization, you can also include it in the Experiment section. 
+Describe briefly how you found your optimal hyperparameter. If you focused strongly on Hyperparameter Optimization, you can also include it in the Experiment section. 
 
 _Note: Random parameter optimization with no motivation/discussion is not interesting and will be graded accordingly_
+
+
+
+| **Semantic Textual Similarity (STS)** | **Correlation** |
+|----------------|-----------|
+|Baseline |0.353           | 
+|Set 1         |0.709            |          
+|Set 2        |52.11%|
+|Set 3        |...|...|
+|Set 4        |...|...|
+|Set 5        |...|...|
+|Set 6        |...|...|
+|Set 7        |...|...|
+|Set 8        |...|...|
+
+Set 1: *{Pearson Loss + Mean Pooling}*
+Set 2: *{Set 1 + MLP}*
+Set 3: *{Set 1 + Deep NN with ReLU}*
+Set 4: *{Set 1 + Deep NN with GELU}*
+
+ 
+
+
 
 ## Visualizations 
 Add relevant graphs of your experiments here. Those graphs should show relevant metrics (accuracy, validation loss, etc.) during the training. Compare the  different training processes of your improvements in those graphs. 
