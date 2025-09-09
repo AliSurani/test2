@@ -1,4 +1,186 @@
 
+
+
+
+#  2) Semantic Textual Similarity (STS)
+
+## 1) File structure
+File structure for this task:
+```
+ ⁠project_root/
+├─ multitask_classifier_sts.py
+├─ data/
+│  ├─ sts-similarity-dev.csv
+│  ├─ sts-similarity-test-student.csv
+│  └─ sts-similarity-train.csv
+├─ predictions/
+│  └─ bert/ 
+│     ├─ sts-similarity-dev-output.csv
+      └─ sts-similarity-test-output.csv
+```
+
+## 2) Execution modes
+
+**Baseline:**
+```
+python multitask_classifier.py \
+--task=sts \
+--option=finetune \
+--use_gpu
+```
+**Experiment 1 & 2: *{Pearson Loss + Mean Pooling + Linear NN}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=linear
+```
+**Experiment 3: *{Pearson Loss + Mean Pooling + MLP}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=mlp
+```
+**Experiment 4: *{Pearson Loss + Mean Pooling + Deep NN with GELU}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=deep_with_gelu
+```
+**Experiment 5: *{Pearson Loss + Mean Pooling + Deep NN with ReLU}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=deep_with_relu
+```
+**Experiment 6: *{Pearson Loss + Mean Pooling + MLP + avg_sentence_embeddings}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=mlp --sim_feats=avg
+```
+**Experiment 7: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=deep_with_gelu --sim_feats=avg
+```
+**Experiment 8: *{Pearson Loss + Mean Pooling + MLP + avg_sentence_embeddings + Residual & Norm layer}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=mlp --sim_feats=avg \
+--use_residual --use_norm
+```
+**Experiment 9: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=deep_with_gelu --sim_feats=avg \
+--use_residual --use_norm
+```
+**Experiment 10: *{Pearson Loss + Mean Pooling + MLP + avg_sentence_embeddings + Residual & Norm layer + Contrastive Learning}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=mlp --sim_feats=avg \
+--use_residual --use_norm \
+--use_contrastive
+```
+**Experiment 11: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer + Contrastive Learning}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=deep_with_gelu --sim_feats=avg \
+--use_residual --use_norm \
+--use_contrastive
+```
+**Experiment 12: *{Pearson Loss + Mean Pooling + MLP + avg_sentence_embeddings + Residual & Norm layer + Inbatch Contrastive Learning}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=mlp --sim_feats=avg \
+--use_residual --use_norm \
+--use_inbatch_contrastive
+```
+**Experiment 13: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer + Inbatch Contrastive Learning}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=deep_with_gelu --sim_feats=avg \
+--use_residual --use_norm \
+--use_inbatch_contrastive
+```
+**Experiment 14: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer + Contrastive Learning + Linear Scheduler}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=deep_with_gelu --sim_feats=avg \
+--use_residual --use_norm \
+--use_contrastive --use_linear_scheduler
+```
+**Experiment 15: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer + Contrastive Learning + Cosine Scheduler}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=deep_with_gelu --sim_feats=avg \
+--use_residual --use_norm \
+--use_contrastive --use_cosine_scheduler
+```
+**Experiment 16: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer + Contrastive Learning + Linear Scheduler + Best Hyperparameters}***
+```
+python multitask_classifier_sts.py \
+--task=sts --option=finetune --use_gpu \
+--sim_head=deep_with_gelu --sim_feats=avg \
+--use_residual --use_norm \
+--use_contrastive --use_linear_scheduler \
+--batch_size=16 --lr=0.00003 --hidden_dropout_prob=0.1 
+```
+
+### 3) CLI quick reference — QQP
+```
+# General
+--use_gpu                             Use CUDA if available
+--seed                                Global random seed (default: 11711)
+--epochs                              Training epochs (default: 10)
+--lr                                  AdamW learning rate (default: 1e-5)
+
+# Model & Tokenization
+--option                              BERT training mode (default: pretrain)
+--batch_size                          Samples per update (default: 64)
+--max_seq_length                      Maximum token length (default: 128)
+
+# Head (QQP) & Dropout
+--hidden_dropout_prob                 Dropout rate for layers (default: 0.3)
+--qqp_hidden                          Hidden units in head (default: 512)
+
+# Optimization & Scheduling
+--weight_decay                        L2 regularization strength (default: 0.01)
+--warmup_ratio                        LR warmup proportion (default: 0.1)
+--max_grad_norm                       Gradient clipping threshold (default: 1.0)
+--fp16                                Enable mixed-precision training
+--grad_ckpt                           Enable gradient checkpointing in BERT
+
+# Loss Controls & Class Imbalance
+--label_smoothing                     Binary label smoothing for QQP  (default: 0.0)
+--pos_weight                          Positive class weight for BCE; 0 disables (default: 0.0)
+
+# Contrastive (MNRL) Controls
+--mnr_weight                          Weight for Multiple Negative Ranking loss (default: 0.2)
+--mnr_temperature                     Softmax temperature for MNR (default: 0.05)
+--mnr_symmetric                       Apply MNR both directions
+--proj_dim                            Projection dim before QQP head/MNR (default: 256)
+    
+# Stemming Consistency (R-Drop)
+--stem_aug                            Use stemming-based consistency loss for QQP
+--stemmer                             Stemming algorithm choice (default: porter)
+--stem_alpha                          Weight of KL in stemming consistency (default: 1.0)
+    
+# Approach Selector
+--approach                            Choose between 5 approaches for improving QQP Baseline (default: mnrl)
+                                      (choices: "mnrl", "optimized_pipeline", "mnrl_with_optimized_pipeline", "sbert", "stemming")
+
+```
+
 # Methodology
 
 This task focuses on improving semantic textual similarity (STS) performance using a customized multitask BERT architecture. Our primary goal is to explore, implement, and evaluate various architectural and optimization strategies within a unified and extensible pipeline that supports both baseline and advanced methods via configurable command-line arguments. The overarching methodology is to systematically extend the standard BERT model into a flexible research platform for sentence-level similarity tasks, leveraging modern advancements in neural architectures and loss functions.
