@@ -388,7 +388,7 @@ Scheduling the learning rate is expected to:
 
 We expected both schedulers to give better or at least more stable performance than the constant learning rate baseline.
 
-**Changed:**
+**Changes:**
 
 Building on the best configuration from Set 5:
 
@@ -440,19 +440,56 @@ _Note: Random parameter optimization with no motivation/discussion is not intere
 | **Semantic Textual Similarity (STS)** | **Correlation** |
 |----------------|-----------|
 |Baseline |0.353           | 
-|Set 1         |0.709            |          
-|Set 2        |52.11%|
-|Set 3        |...|...|
-|Set 4        |...|...|
-|Set 5        |...|...|
-|Set 6        |...|...|
-|Set 7        |...|...|
-|Set 8        |...|...|
+|Experiment 1         |0.709|          
+|Experiment 2        |0.736|
+|Experiment 3        |0.824|
+|Experiment 4        |0.818|
+|Experiment 5        |0.806|
+|Experiment 6        |0.824|
+|Experiment 7        |0.818|
+|Experiment 8        |0.830|
+|Experiment 9        |0.828|
+|Experiment 10        |0.825|
+|Experiment 11        |0.834|
+|Experiment 12        |0.787|
+|Experiment 13        |0.767|
+|Experiment 14        |0.824|
+|Experiment 15        |0.823|
+|Experiment 16        |0.855|
 
-Set 1: *{Pearson Loss + Mean Pooling}*
-Set 2: *{Set 1 + MLP}*
-Set 3: *{Set 1 + Deep NN with ReLU}*
-Set 4: *{Set 1 + Deep NN with GELU}*
+Experiment 1: *{Pearson Loss + Mean Pooling}*
+
+Experiment 2: *{Pearson Loss + Mean Pooling + Linear NN}*
+
+Experiment 3: *{Pearson Loss + Mean Pooling + MLP}*
+
+Experiment 4: *{Pearson Loss + Mean Pooling + Deep NN with GELU}*
+
+Experiment 5: *{Pearson Loss + Mean Pooling + Deep NN with ReLU}*
+
+Experiment 6: *{Pearson Loss + Mean Pooling + MLP + avg_sentence_embeddings}*
+
+Experiment 7: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings}*
+
+Experiment 8: *{Pearson Loss + Mean Pooling + MLP + avg_sentence_embeddings + Residual & Norm layer}*
+
+Experiment 9: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer}*
+
+Experiment 10: *{Pearson Loss + Mean Pooling + MLP + avg_sentence_embeddings + Residual & Norm layer + Contrastive Learning}*
+
+Experiment 11: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer + Contrastive Learning}*
+
+Experiment 12: *{Pearson Loss + Mean Pooling + MLP + avg_sentence_embeddings + Residual & Norm layer + Inbatch Contrastive Learning}*
+
+Experiment 13: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer + Inbatch Contrastive Learning}*
+
+Experiment 14: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer + Contrastive Learning + Linear Scheduler}*
+
+Experiment 15: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer + Contrastive Learning + Cosine Scheduler}*
+
+Experiment 16: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer + Contrastive Learning + Linear Scheduler + Best Hyperparameters}*
+
+
 
  
 
