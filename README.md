@@ -1,7 +1,3 @@
-
-
-
-
 #  2) Semantic Textual Similarity (STS)
 
 ## 1) File structure
@@ -136,7 +132,7 @@ python multitask_classifier_sts.py \
 --batch_size=16 --lr=0.00003 --hidden_dropout_prob=0.1 
 ```
 
-### 3) CLI quick reference — QQP
+## 3) CLI quick reference — QQP
 ```
 # General
 --use_gpu                             Use CUDA if available
@@ -181,7 +177,7 @@ python multitask_classifier_sts.py \
 
 ```
 
-# Methodology
+## 4) Methodology
 
 This task focuses on improving semantic textual similarity (STS) performance using a customized multitask BERT architecture. Our primary goal is to explore, implement, and evaluate various architectural and optimization strategies within a unified and extensible pipeline that supports both baseline and advanced methods via configurable command-line arguments. The overarching methodology is to systematically extend the standard BERT model into a flexible research platform for sentence-level similarity tasks, leveraging modern advancements in neural architectures and loss functions.
 
@@ -270,7 +266,7 @@ All enhancements are modularized and can be turned on or off via CLI arguments. 
 ---
 
 
-# Experiments
+## 5) Experiments
 
 ### **Set 1: Improving Loss Function and Sentence Representation**
 
@@ -611,7 +607,7 @@ As we move into final hyperparameter tuning, this linear schedule will serve as 
 
 ---
 
-## Results 
+## 6) Results 
 ### Hyperparameter Optimization 
 
 To identify the best hyperparameter configuration for the STS task, We performed a greedy search over three important training parameters:
@@ -730,34 +726,11 @@ Experiment 15: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_
 Experiment 16: *{Pearson Loss + Mean Pooling + Deep NN with GELU + avg_sentence_embeddings + Residual & Norm layer + Contrastive Learning + Linear Scheduler + Best Hyperparameters}*
 
 
-
- 
-
-
-
-## Visualizations 
+## 7) Visualizations 
 Add relevant graphs of your experiments here. Those graphs should show relevant metrics (accuracy, validation loss, etc.) during the training. Compare the  different training processes of your improvements in those graphs. 
 
 For example, you could analyze different questions with those plots like: 
 - Does improvement A converge faster during training than improvement B? 
 - Does Improvement B converge slower but perform better in the end? 
 - etc...
-
-## Members Contribution 
-Explain what member did what in the project:
-
-**Member 1:** _implemented the training objective using X, Y, and Z. Supported member 2 in refactoring the code. Data cleaning, etc._
-
-**Member 2:** ...
-
-...
-
-We should be able to understand each member's contribution within 5 minutes. 
-
-# AI-Usage Card
-Artificial Intelligence (AI) aided the development of this project. Please add a link to your AI-Usage card [here](https://ai-cards.org/).
-
-# References 
-Write down all your references (other repositories, papers, etc.) that you used for your project.
-
 
