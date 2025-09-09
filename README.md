@@ -366,6 +366,69 @@ Based on this underperformance, we do not carry forward in-batch contrastive lea
 
 We continue with `deep_with_gelu` using dropout-based SimCSE contrastive loss (from Set 5), as it showed more consistent improvements aligned with the STS task's needs.
 
+
+## **Set 7: Learning Rate Schedulers**
+
+**Overview:**
+
+This set explores the impact of learning rate scheduling on model performance for the STS task. After locking in the strongest model configuration from earlier sets (Deep NN + GELU + enriched features + dropout-based contrastive learning), we now test whether adjusting the learning rate dynamically through scheduling improves correlation performance.
+
+We use two widely adopted scheduler strategies:
+
+* Linear Warmup Scheduler
+* Cosine Warmup Scheduler
+
+**Expectations:**
+
+Scheduling the learning rate is expected to:
+
+* Help avoid sharp convergence and overfitting
+* Support gradual stabilization after initial warmup
+* Potentially improve generalization by decaying the learning rate smoothly
+
+We expected both schedulers to give better or at least more stable performance than the constant learning rate baseline.
+
+**Changed:**
+
+Building on the best configuration from Set 5:
+
+* `sim_head = deep_with_gelu`
+* `sim_feats = avg`
+* `use_norm = True`
+* `use_residual = True`
+* `use_contrastive = True`
+
+Changes:
+
+* Enabled `use_linear_scheduler = True` in Exp 14
+* Enabled `use_cosine_scheduler = True` in Exp 15
+
+**Results:**
+
+| Experiment | Scheduler Type   | Dev Correlation |
+| ---------: | ---------------- | --------------- |
+|     Exp 14 | Linear Scheduler | **0.824**       |
+|     Exp 15 | Cosine Scheduler | 0.823           |
+
+
+**Discussion:**
+
+Both scheduler types performed competitively and nearly matched the earlier best model results (0.834 with no scheduler), but they didn’t offer significant further gains.
+
+* Linear Scheduler slightly outperformed Cosine Scheduler (0.824 vs. 0.823)
+* The linear schedule may provide a more stable and gradual decay aligned with our fine-tuning setup, especially since the STS task benefits from steady convergence rather than oscillating updates
+* Cosine decay, while smoother and theoretically more robust for longer training, might have caused too rapid decay in our relatively short training schedule
+
+We choose to carry forward the Linear Scheduler for future experiments. It offers:
+
+* Slightly better performance
+* Better alignment with controlled learning rate decay
+* Simpler tuning and predictable learning behavior
+
+As we move into final hyperparameter tuning, this linear schedule will serve as a reliable training backbone.
+
+
+
 ---
 
 
