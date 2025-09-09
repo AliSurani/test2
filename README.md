@@ -431,11 +431,68 @@ As we move into final hyperparameter tuning, this linear schedule will serve as 
 
 ## Results 
 ### Hyperparameter Optimization 
-Describe briefly how you found your optimal hyperparameter. If you focused strongly on Hyperparameter Optimization, you can also include it in the Experiment section. 
 
-_Note: Random parameter optimization with no motivation/discussion is not interesting and will be graded accordingly_
+To identify the best hyperparameter configuration for the STS task, We performed a greedy search over three important training parameters:
 
+* `batch_size`: Controls how many samples are processed in one iteration. A smaller batch size generally improves generalization but increases training time.
+* `learning_rate`: Crucial for fine-tuning large pre-trained models. Small adjustments can lead to significant changes in convergence and final performance.
+* `hidden_dropout_prob`: Helps regularize the model and prevent overfitting, especially important when training on smaller datasets like STS.
 
+**Greedy Search Procedure**
+
+We optimized the hyperparameters sequentially instead of trying all combinations (i.e., no full grid search):
+
+**Step 1: Find the best `batch_size`**
+
+* Fixed `learning_rate = 1e-5`, `dropout = 0.3`
+* Tried: 64 → 32 → 16
+
+| batch\_size | learning\_rate | dropout | Pearson Corr    |
+| ----------- | -------------- | ------- | --------------- |
+| 64          | 1e-5           | 0.3     | 0.824           |
+| 32          | 1e-5           | 0.3     | 0.828           |
+| **16**      | 1e-5           | 0.3     | **0.835**       |
+
+* Best `batch_size` = 16
+
+**Step 2: Find the best `learning_rate`**
+
+* Fixed `batch_size = 16`, `dropout = 0.3`
+* Tried: 1e-5 → 2e-5 → 3e-5
+
+| batch\_size | learning\_rate | dropout | Pearson Corr    |
+| ----------- | -------------- | ------- | --------------- |
+| 16          | 1e-5           | 0.3     | 0.835           |
+| 16          | 2e-5           | 0.3     | 0.844           |
+| **16**      | **3e-5**       | 0.3     | **0.853**       |
+
+* Best `learning_rate` = 3e-5
+
+**Step 3: Find the best `hidden_dropout_prob`**
+
+* Fixed `batch_size = 16`, `learning_rate = 3e-5`
+* Tried: 0.3 → 0.2 → 0.1
+
+| batch\_size | learning\_rate | dropout | Pearson Corr    |
+| ----------- | -------------- | ------- | --------------- |
+| 16          | 3e-5           | 0.3     | 0.853           |
+| 16          | 3e-5           | 0.2     | 0.852           |
+| **16**      | **3e-5**       | **0.1** | **0.855**       |
+
+* Best `hidden_dropout_prob` = 0.1
+
+**Final Best Hyperparameters**
+
+| Parameter             | Value     |
+| --------------------- | --------- |
+| `batch_size`          | 16        |
+| `learning_rate`       | 3e-5      |
+| `hidden_dropout_prob` | 0.1       |
+| **Best Correlation**         | **0.855** |
+
+This methodical process allowed us to isolate the individual contribution of each hyperparameter and reach a configuration that maximized performance while maintaining stability and generalization.
+
+### All Results 
 
 | **Semantic Textual Similarity (STS)** | **Correlation** |
 |----------------|-----------|
