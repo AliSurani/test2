@@ -512,7 +512,8 @@ This methodical process allowed us to isolate the individual contribution of eac
 |Experiment 13        |0.767|
 |Experiment 14        |0.824|
 |Experiment 15        |0.823|
-|Experiment 16        |0.855|
+|**Experiment 16**        |**0.855**|
+
 
 Experiment 1: *{Pearson Loss + Mean Pooling}*
 
