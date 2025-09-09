@@ -318,6 +318,54 @@ We carry forward only `deep_with_gelu` with contrastive learning to the next sta
 
 `mlp` will be retained as a baseline but not actively explored in contrastive learning branches.
 
+
+## **Set 6: In-Batch Contrastive Learning**
+
+**Overview:**
+
+This set explores the effectiveness of in-batch contrastive learning using in-batch negatives (SimCSE-style) on the STS task. Instead of only pulling together positive pairs (as in Set 5), we now push apart unrelated examples within a batch by treating other samples as negatives—expected to better structure the sentence embedding space.
+
+**Expectations:**
+
+In-batch contrastive learning was expected to:
+
+* Further improve the discriminative power of embeddings by encouraging inter-sentence diversity
+* Boost semantic similarity prediction by pushing unrelated sentence representations apart
+* Outperform the earlier contrastive setting by using real in-batch negatives instead of synthetic dropout noise
+
+**Changes:**
+
+Building on Set 5:
+
+* Enabled `use_inbatch_contrastive = True` to add in-batch contrastive loss
+* Disabled `use_contrastive = False` to isolate the effect of in-batch negatives
+* Loss used = `MSE + (1 - Pearson) + 0.5 × InBatchContrastiveLoss`
+
+**Results:**
+
+| Experiment | `sim_head`       | `sim_feats` | `use_norm` | `use_residual` | `use_inbatch_contrastive` | Dev Correlation |
+| ---------: | ---------------- | ----------- | ---------- | -------------- | ------------------------- | --------------- |
+|     Exp 12 | `mlp`            | `avg`       | `True`          | `True`              | `True`                         | 0.787           |
+|     Exp 13 | `deep_with_gelu` | `avg`       | `True`          | `True`              | `True`                         | 0.767           |
+
+
+**Discussion:**
+
+Contrary to expectations, both models experienced noticeable performance drops after introducing in-batch contrastive loss:
+
+* `mlp` dropped from 0.825 → 0.787
+* `deep_with_gelu` with GELU dropped from 0.834 → 0.767
+
+This suggests that in-batch contrastive learning, while powerful in pretraining, may not be as effective in our fine-tuning setup on STS:
+
+* STS is a regression task, and contrastive pressure to separate samples might conflict with the smooth, continuous nature of the similarity scores
+* In-batch negatives may sometimes include semantically related pairs, leading to conflicting learning signals (i.e., pushing apart similar sentences)
+* The model might be over-regularized, especially with limited batch sizes and no curriculum in place to guide negative mining
+  
+Based on this underperformance, we do not carry forward in-batch contrastive learning in its current form. Despite theoretical appeal, it requires more careful tuning (e.g., better negative sampling, larger batches, pretraining phase) to be effective. Future work may revisit it with hybrid approaches or curriculum learning.
+
+We continue with `deep_with_gelu` using dropout-based SimCSE contrastive loss (from Set 5), as it showed more consistent improvements aligned with the STS task's needs.
+
 ---
 
 
